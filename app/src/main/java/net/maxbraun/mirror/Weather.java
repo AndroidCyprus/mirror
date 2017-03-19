@@ -1,5 +1,6 @@
 package net.maxbraun.mirror;
 
+import android.content.Context;
 import android.location.Location;
 import android.util.Log;
 
@@ -20,19 +21,18 @@ import net.maxbraun.mirror.Weather.WeatherData;
 public class Weather extends DataUpdater<WeatherData> {
   private static final String TAG = Weather.class.getSimpleName();
 
-  // TODO: Replace the API key with a valid one from https://developer.forecast.io
-  /**
-   * The key used for the Forecast API.
-   */
-  private static final String FORECAST_IO_API_KEY = "58b42a8aa74df3e828442a4fb79f5dba";
-
   /**
    * The time in milliseconds between API calls to update the weather.
    */
   private static final long UPDATE_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
   /**
-   * A {@link Map} from Forecast's icon code to the corresponding drawable resource ID.
+   * The context used to load string resources.
+   */
+  private final Context context;
+
+  /**
+   * A {@link Map} from Dark Sky's icon code to the corresponding drawable resource ID.
    */
   private final Map<String, Integer> iconResources = new HashMap<String, Integer>() {{
     put("clear-day", R.drawable.clear_day);
@@ -98,8 +98,9 @@ public class Weather extends DataUpdater<WeatherData> {
     }
   }
 
-  public Weather(UpdateListener<WeatherData> updateListener) {
+  public Weather(Context context, UpdateListener<WeatherData> updateListener) {
     super(updateListener, UPDATE_INTERVAL_MILLIS);
+    this.context = context;
   }
 
   @Override
@@ -114,13 +115,12 @@ public class Weather extends DataUpdater<WeatherData> {
     }
 
 
-    // Get the latest data from the Forecast API.
+    // Get the latest data from the Dark Sky API.
     String requestUrl = getRequestUrl(location);
 
     // Parse the data we are interested in from the response JSON.
-    // Forecast API documentation: https://developer.forecast.io/docs/v2
     try {
-      JSONObject response = makeRequest(requestUrl);
+      JSONObject response = Network.getJson(requestUrl);
       if (response != null) {
         return new WeatherData(
             parseCurrentTemperature(response),
@@ -139,33 +139,23 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Creates the URL for a Forecast API request based on the specified {@link Location} or
+   * Creates the URL for a Dark Sky API request based on the specified {@link Location} or
    * {@code null} if the location is unknown.
    */
-  private static String getRequestUrl(Location location) {
+  private String getRequestUrl(Location location) {
     if (location != null) {
-      return String.format(Locale.US, "https://api.forecast.io/forecast/%s/%f,%f",
-          FORECAST_IO_API_KEY, location.getLatitude(), location.getLongitude());
+      return String.format(Locale.US, "https://api.darksky.net/forecast/%s/%f,%f",
+          context.getString(R.string.dark_sky_api_key),
+          location.getLatitude(),
+          location.getLongitude());
     } else {
       return null;
     }
   }
 
   /**
-   * Makes a network request at the specified URL, expecting a JSON response.
-   */
-  private static JSONObject makeRequest(String requestUrl) throws JSONException {
-    String response = Network.get(requestUrl);
-    if (response != null) {
-      return new JSONObject(response);
-    } else {
-      Log.w(TAG, "Empty response.");
-      return null;
-    }
-  }
-
-  /**
-   * Reads the current temperature from the API response.
+   * Reads the current temperature from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private Double parseCurrentTemperature(JSONObject response) throws JSONException {
     JSONObject currently = response.getJSONObject("currently");
@@ -173,7 +163,8 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Reads the current precipitation probability from the API response.
+   * Reads the current precipitation probability from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private Double parseCurrentPrecipitationProbability(JSONObject response) throws JSONException {
     JSONObject currently = response.getJSONObject("currently");
@@ -181,7 +172,8 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Reads the 24-hour forecast summary from the API response.
+   * Reads the 24-hour forecast summary from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private String parseDaySummary(JSONObject response) throws JSONException {
     JSONObject hourly = response.getJSONObject("hourly");
@@ -189,7 +181,8 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Reads the 24-hour forecast precipitation probability from the API response.
+   * Reads the 24-hour forecast precipitation probability from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private Double parseDayPrecipitationProbability(JSONObject response) throws JSONException {
     JSONObject hourly = response.getJSONObject("hourly");
@@ -205,7 +198,8 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Reads the current weather icon code from the API response.
+   * Reads the current weather icon code from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private Integer parseCurrentIcon(JSONObject response) throws JSONException {
     JSONObject currently = response.getJSONObject("currently");
@@ -214,7 +208,8 @@ public class Weather extends DataUpdater<WeatherData> {
   }
 
   /**
-   * Reads the 24-hour forecast weather icon code from the API response.
+   * Reads the 24-hour forecast weather icon code from the API response. API documentation:
+   * https://darksky.net/dev/docs
    */
   private Integer parseDayIcon(JSONObject response) throws JSONException {
     JSONObject hourly = response.getJSONObject("hourly");

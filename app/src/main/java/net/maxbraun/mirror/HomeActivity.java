@@ -2,6 +2,7 @@ package net.maxbraun.mirror;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ImageView;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 
 import net.maxbraun.mirror.Body.BodyMeasure;
+import net.maxbraun.mirror.Commute.CommuteSummary;
 import net.maxbraun.mirror.DataUpdater.UpdateListener;
 import net.maxbraun.mirror.Weather.WeatherData;
 
@@ -108,16 +110,46 @@ public class HomeActivity extends Activity {
         }
       };
 
+  /**
+   * The listener used to populate the UI with the commute summary.
+   */
+  private final UpdateListener<CommuteSummary> commuteUpdateListener =
+      new UpdateListener<CommuteSummary>() {
+        @Override
+        public void onUpdate(CommuteSummary summary) {
+          if (summary != null) {
+            commuteTextView.setText(summary.text);
+            commuteTextView.setVisibility(View.VISIBLE);
+            travelModeView.setImageDrawable(summary.travelModeIcon);
+            travelModeView.setVisibility(View.VISIBLE);
+            if (summary.trafficTrendIcon != null) {
+              trafficTrendView.setImageDrawable(summary.trafficTrendIcon);
+              trafficTrendView.setVisibility(View.VISIBLE);
+            } else {
+              trafficTrendView.setVisibility(View.GONE);
+            }
+          } else {
+            commuteTextView.setVisibility(View.GONE);
+            travelModeView.setVisibility(View.GONE);
+            trafficTrendView.setVisibility(View.GONE);
+          }
+        }
+      };
+
   private TextView temperatureView;
   private TextView weatherSummaryView;
   private TextView precipitationView;
   private ImageView iconView;
   private TextView[] newsViews = new TextView[NEWS_VIEW_IDS.length];
   private BodyView bodyView;
+  private TextView commuteTextView;
+  private ImageView travelModeView;
+  private ImageView trafficTrendView;
 
   private Weather weather;
   private News news;
   private Body body;
+  private Commute commute;
   private Util util;
 
   @Override
@@ -133,10 +165,14 @@ public class HomeActivity extends Activity {
       newsViews[i] = (TextView) findViewById(NEWS_VIEW_IDS[i]);
     }
     bodyView = (BodyView) findViewById(R.id.body);
+    commuteTextView = (TextView) findViewById(R.id.commuteText);
+    travelModeView = (ImageView) findViewById(R.id.travelMode);
+    trafficTrendView = (ImageView) findViewById(R.id.trafficTrend);
 
-    weather = new Weather(weatherUpdateListener);
+    weather = new Weather(this, weatherUpdateListener);
     news = new News(newsUpdateListener);
-    body = new Body(bodyUpdateListener);
+    body = new Body(this, bodyUpdateListener);
+    commute = new Commute(this, commuteUpdateListener);
     util = new Util(this);
   }
 
@@ -146,6 +182,7 @@ public class HomeActivity extends Activity {
     weather.start();
     news.start();
     body.start();
+    commute.start();
   }
 
   @Override
@@ -153,6 +190,7 @@ public class HomeActivity extends Activity {
     weather.stop();
     news.stop();
     body.stop();
+    commute.stop();
     super.onStop();
   }
 
